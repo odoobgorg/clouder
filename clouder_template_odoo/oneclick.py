@@ -20,7 +20,7 @@
 #
 ##############################################################################
 
-from openerp import models, api, modules
+from openerp import models, api
 
 
 class ClouderServer(models.Model):
@@ -38,9 +38,11 @@ class ClouderServer(models.Model):
         for oneclick in self.oneclick_ids:
             if oneclick.code == 'odoo':
                 self.oneclick_deploy_element('container', 'clouder9-all')
-                self.oneclick_deploy_element('base', 'clouder9', code_container='clouder9-all-clouder9')
+                self.oneclick_deploy_element(
+                    'base', 'clouder9', code_container='clouder9-all-clouder9')
 
-                self.oneclick_deploy_element('subservice', 'clouder9-all-clouder9')
+                self.oneclick_deploy_element(
+                    'subservice', 'clouder9-all-clouder9')
 
     @api.multi
     def oneclick_purge_exec(self):
@@ -54,5 +56,3 @@ class ClouderServer(models.Model):
                               ('suffix', '=', 'clouder9-all')]).unlink()
 
         super(ClouderServer, self).oneclick_purge_exec()
-
-

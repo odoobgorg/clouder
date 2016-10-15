@@ -4,7 +4,7 @@
 
         <record id="oneclick_magento" model="clouder.oneclick">
             <field name="name">Magento</field>
-            <field name="function">oneclick_magento</field>
+            <field name="code">magento</field>
         </record>
 
         <record id="application_type_magento" model="clouder.application.type">
@@ -125,7 +125,7 @@
             <field name="image_id" ref="image_magento_data"/>
             <field name="name">/opt/magento/exec/var/log</field>
         </record>
-        <record id="image_magento_data_volume_config" model="clouder.image.volume">
+        <record id="image_magento_data_volume_etc" model="clouder.image.volume">
             <field name="image_id" ref="image_magento_data"/>
             <field name="name">/opt/magento/exec/app/etc</field>
         </record>

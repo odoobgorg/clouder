@@ -21,8 +21,7 @@
 ##############################################################################
 
 
-from openerp import models, fields, api, _
-from openerp.exceptions import except_orm
+from openerp import models, fields, api
 
 from datetime import datetime
 import ast
@@ -110,7 +109,7 @@ class ClouderSave(models.Model):
         """
         Property returning the dumpfile name.
         """
-        return self.base_fullname.replace('.', '_').replace('-','_') + '.dump'
+        return self.base_fullname.replace('.', '_').replace('-', '_') + '.dump'
 
     @property
     def computed_restore_to_environment(self):
@@ -225,7 +224,8 @@ class ClouderSave(models.Model):
                 'base_name': base.name,
                 'base_domain': base.domain_id.name,
                 'base_title': base.title,
-                'base_container_environment': base.container_id.environment_id.prefix,
+                'base_container_environment':
+                    base.container_id.environment_id.prefix,
                 'base_container_suffix': base.container_id.suffix,
                 'base_container_server':
                 base.container_id.server_id.fulldomain,
@@ -269,7 +269,8 @@ class ClouderSave(models.Model):
         self.log('Saving ' + self.name)
         self.log('Comment: ' + self.comment)
 
-        container = 'exec' in self.container_id.childs and self.container_id.childs['exec'] or self.container_id
+        container = 'exec' in self.container_id.childs \
+                    and self.container_id.childs['exec'] or self.container_id
         if self.base_fullname:
             container = container.base_backup_container
             container.execute([
@@ -291,7 +292,8 @@ class ClouderSave(models.Model):
                 '/tmp/clouder'])
         else:
             for volume in self.container_volumes_comma.split(','):
-                container.server_id.execute(['mkdir', '-p', directory + volume])
+                container.server_id.execute([
+                    'mkdir', '-p', directory + volume])
                 container.server_id.execute([
                     'docker', 'cp',
                     container.name + ':' + volume,
@@ -438,45 +440,46 @@ class ClouderSave(models.Model):
         environments = environment_obj.search([
             ('prefix', '=', self.computed_restore_to_environment)])
         if not environments:
-                raise except_orm(
-                    _('Error!'),
-                    _("Couldn't find environment " +
-                      self.computed_restore_to_environment +
-                      ", aborting restoration."))
+                self.raise_error(
+                    'Could not find environment "%s". Aborting restoration.',
+                    self.computed_restore_to_environment,
+                )
         apps = application_obj.search([('code', '=', self.container_app)])
         if not apps:
-            raise except_orm(
-                _('Error!'),
-                _("Couldn't find application " + self.container_app +
-                  ", aborting restoration."))
-
+            self.raise_error(
+                'Could not find application "%s". Aborting restoration.',
+                self.container_app,
+            )
 
         if self.container_restore_to_suffix or not self.container_id:
 
             imgs = image_obj.search([('name', '=', self.container_img)])
             if not imgs:
-                raise except_orm(
-                    _('Error!'),
-                    _("Couldn't find image " + self.container_img +
-                      ", aborting restoration."))
+                self.raise_error(
+                    'Could not find the image "%s". Aborting restoration.',
+                    self.container_img,
+                )
 
             img_versions = image_version_obj.search(
                 [('name', '=', self.container_img_version)])
             # upgrade = True
             if not img_versions:
-                self.log("Warning, couldn't find the image version, using latest")
+                self.log(
+                    "Warning, could not find the image version, using latest")
                 # We do not want to force the upgrade if we had to use latest
                 # upgrade = False
                 versions = imgs[0].version_ids
                 if not versions:
-                    raise except_orm(
-                        _('Error!'),
-                        _("Couldn't find versions for image " +
-                          self.container_img + ", aborting restoration."))
+                    self.raise_error(
+                        'Could not find versions for image "%s". '
+                        'Aborting restoration.',
+                        self.container_img,
+                    )
                 img_versions = [versions[0]]
 
             containers = container_obj.search([
-                ('environment_id.prefix', '=', self.computed_restore_to_environment),
+                ('environment_id.prefix', '=',
+                 self.computed_restore_to_environment),
                 ('suffix', '=', self.computed_container_restore_to_suffix),
                 ('server_id.name', '=',
                  self.computed_container_restore_to_server)
@@ -488,11 +491,10 @@ class ClouderSave(models.Model):
                 servers = server_obj.search([
                     ('name', '=', self.computed_container_restore_to_server)])
                 if not servers:
-                    raise except_orm(
-                        _('Error!'),
-                        _("Couldn't find server " +
-                          self.computed_container_restore_to_server +
-                          ", aborting restoration."))
+                    self.raise_error(
+                        'Could not find server "%s". Aborting restoration.',
+                        self.computed_container_restore_to_server,
+                    )
 
                 ports = []
                 for port, port_vals \
@@ -549,7 +551,8 @@ class ClouderSave(models.Model):
                 self = self.with_context(forcesave=False)
                 self = self.with_context(nosave=True)
 
-            self = self.with_context(save_comment='Before restore ' + self.name)
+            self = self.with_context(
+                save_comment='Before restore ' + self.name)
             container.save_exec(no_enqueue=True)
 
             self.restore_action(container)
@@ -580,11 +583,11 @@ class ClouderSave(models.Model):
                     domains = domain_obj.search(
                         [('name', '=', self.computed_base_restore_to_domain)])
                     if not domains:
-                        raise except_orm(
-                            _('Error!'),
-                            _("Couldn't find domain " +
-                              self.computed_base_restore_to_domain +
-                              ", aborting restoration."))
+                        self.raise_error(
+                            'Could not find domain "%s". '
+                            'Aborting restoration.',
+                            self.computed_base_restore_to_domain,
+                        )
                     options = []
                     for option, option_vals in ast.literal_eval(
                             self.base_options).iteritems():
@@ -634,7 +637,8 @@ class ClouderSave(models.Model):
                 self.log("A base_id was linked in the save")
                 base = self.base_id
 
-            self = self.with_context(save_comment='Before restore ' + self.name)
+            self = self.with_context(
+                save_comment='Before restore ' + self.name)
             base.save_exec(no_enqueue=True)
 
             self.restore_action(base)
@@ -678,10 +682,12 @@ class ClouderSave(models.Model):
         backup.send(
             self.home_directory + '/.ssh/keys/' +
             container.server_id.fulldomain + '.pub',
-            '/home/backup/.ssh/keys/' + container.server_id.fulldomain + '.pub',
+            '/home/backup/.ssh/keys/' +
+            container.server_id.fulldomain + '.pub',
             username='backup')
         backup.send(
-            self.home_directory + '/.ssh/keys/' + container.server_id.fulldomain,
+            self.home_directory + '/.ssh/keys/' +
+            container.server_id.fulldomain,
             '/home/backup/.ssh/keys/' + container.server_id.fulldomain,
             username='backup')
         backup.execute(['chmod', '-R', '700', '/home/backup/.ssh'],
@@ -714,7 +720,8 @@ class ClouderSave(models.Model):
 
         if not self.base_fullname:
             for volume in self.container_volumes_comma.split(','):
-                container.execute(['rm', '-rf', volume + '/*'], username='root')
+                container.execute([
+                    'rm', '-rf', volume + '/*'], username='root')
         else:
             container.execute(
                 ['rm', '-rf', '/base-backup/restore-' + self.name],

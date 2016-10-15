@@ -20,11 +20,15 @@
 #
 ##############################################################################
 
-from openerp import models, api, modules
-import time
-import erppeek
+from openerp import models, api
 
+import logging
+_logger = logging.getLogger(__name__)
 
+try:
+    import erppeek
+except ImportError:
+    _logger.debug('Cannot `import erppeek`.')
 
 
 class ClouderContainer(models.Model):
@@ -47,12 +51,13 @@ class ClouderContainer(models.Model):
         if self.application_id.type_id.name == 'odoo':
             config_file = '/opt/odoo/etc/odoo.conf'
             if self.application_id.code == 'data':
-                self.execute(['sed', '-i', '"s/APPLICATION/' +
-                             self.parent_id.container_id.application_id.fullcode
-                             .replace('-', '_') + '/g"', config_file])
-                self.execute(['sed', '-i', 's/DB_SERVER/' +
-                             self.db_server + '/g',
-                             config_file])
+                self.execute([
+                    'sed', '-i', '"s/APPLICATION/' +
+                    self.parent_id.container_id.application_id.fullcode
+                    .replace('-', '_') + '/g"', config_file])
+                self.execute([
+                    'sed', '-i', 's/DB_SERVER/' + self.db_server + '/g',
+                    config_file])
                 self.execute([
                     'sed', '-i',
                     's/DB_USER/' + self.db_user + '/g',
@@ -72,12 +77,14 @@ class ClouderContainer(models.Model):
                             '/opt/odoo/files/extra/' + extra_dir + ','
                 self.execute([
                     'sed', '-i', '"s/ADDONS_PATH/' +
-                    addons_path.replace('/', '\/') + '/g"',
+                    addons_path.replace('/', r'\/') + '/g"',
                     config_file])
 
             if self.application_id.code == 'ssh':
                 self.execute(['mkdir /root/.ssh'])
-                self.execute(['echo "' + self.options['ssh_publickey']['value'] + '" > /root/.ssh/authorized_keys'])
+                self.execute([
+                    'echo "' + self.options['ssh_publickey']['value'] +
+                    '" > /root/.ssh/authorized_keys'])
 
 
 class ClouderBase(models.Model):
@@ -159,9 +166,11 @@ class ClouderBase(models.Model):
                      ".get_object_reference('base', 'group_no_one')[1]")
             extended_group_id = client.model('ir.model.data')\
                 .get_object_reference('base', 'group_no_one')[1]
-            self.log("client.model('res.users').write([" + str(admin_id) + "], {'groups_id': [(4, " + str(extended_group_id) + ")]})")
-            client.model('res.users').write([1],
-                                             {'groups_id': [(4, extended_group_id)]})
+            self.log(
+                "client.model('res.users').write([" + str(admin_id) +
+                "], {'groups_id': [(4, " + str(extended_group_id) + ")]})")
+            client.model('res.users').write(
+                [1], {'groups_id': [(4, extended_group_id)]})
 
             if self.application_id.options['default_account_chart']['value']\
                     or self.options['account_chart']['value']:
@@ -408,7 +417,10 @@ class ClouderBase(models.Model):
             # except:
             #     pass
 
-            self.salt_master.execute(['salt', self.container_id.server_id.fulldomain, 'state.apply', 'base_update', "pillar=\"{'base_name': '" + self.fullname_ + "'}\""])
+            self.salt_master.execute([
+                'salt', self.container_id.server_id.fulldomain,
+                'state.apply', 'base_update',
+                "pillar=\"{'base_name': '" + self.fullname_ + "'}\""])
 
         return res
 
@@ -443,7 +455,7 @@ class ClouderBaseLink(models.Model):
                 'sed', '-i', '"s/LONGPOLLING/' +
                 self.base_id.container_id.ports['longpolling']['hostport'] +
                 '/g"', self.base_id.nginx_configfile])
-
+        return res
 
     @api.multi
     def deploy_link(self):
@@ -455,22 +467,24 @@ class ClouderBaseLink(models.Model):
         if self.name.type_id.name == 'postfix' \
                 and self.base_id.application_id.type_id.name == 'odoo':
 
-            if 'base_restoration' in self.env.context and self.env.context['base_restoration']:
+            if 'base_restoration' in self.env.context \
+                    and self.env.context['base_restoration']:
                 return
 
             self.log("client = erppeek.Client('http://" +
                      self.base_id.container_id.server_id.ip +
                      ":" +
-                     self.base_id.odoo_port
-                     + "," + "db=" + self.base_id.fullname_ + "," +
+                     self.base_id.odoo_port +
+                     "," + "db=" + self.base_id.fullname_ + "," +
                      "user=" + self.base_id.admin_name + ", password=$$$" +
                      self.base_id.admin_password + "$$$)")
             client = erppeek.Client(
-                 'http://' +
+                'http://' +
                 self.base_id.container_id.server_id.ip + ':' +
                 self.base_id.odoo_port,
                 db=self.base_id.fullname_,
-                user=self.base_id.admin_name, password=self.base_id.admin_password)
+                user=self.base_id.admin_name,
+                password=self.base_id.admin_password)
             self.log("server_id = client.model('ir.model.data')"
                      ".get_object_reference('base', "
                      "'ir_mail_server_localhost0')[1]")
@@ -525,7 +539,7 @@ class ClouderBaseLink(models.Model):
             self.target.execute(['postmap', '/etc/postfix/virtual_aliases'])
             self.target.execute([
                 'sed', '-i',
-                '"/d\s' + self.base_id.fullname_ + '/d"',
+                r'"/d\s' + self.base_id.fullname_ + '/d"',
                 '/etc/aliases'])
             self.target.execute(['newaliases'])
             self.target.execute(['/etc/init.d/postfix', 'reload'])

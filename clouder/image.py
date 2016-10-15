@@ -22,7 +22,6 @@
 
 
 from openerp import models, fields, api, _
-from openerp.exceptions import except_orm
 import re
 from datetime import datetime
 
@@ -34,7 +33,8 @@ class ClouderImageTemplate(models.Model):
     _name = 'clouder.image.template'
 
     name = fields.Char('Image name', required=True)
-    volume_ids = fields.One2many('clouder.image.volume', 'template_id', 'Volumes')
+    volume_ids = fields.One2many(
+        'clouder.image.volume', 'template_id', 'Volumes')
     port_ids = fields.One2many('clouder.image.port', 'template_id', 'Ports')
 
 
@@ -86,10 +86,12 @@ class ClouderImage(models.Model):
         elif self.parent_from:
             dockerfile += self.parent_from
         else:
-            raise except_orm(_('Data error!'),
-                             _("You need to specify the image to inherit!"))
+            self.raise_error(
+                "You need to specify the image to inherit!",
+            )
 
-        dockerfile += '\nMAINTAINER ' + self.env['clouder.model'].email_sysadmin + '\n'
+        dockerfile += \
+            '\nMAINTAINER ' + self.env['clouder.model'].email_sysadmin + '\n'
 
         dockerfile += self.dockerfile or ''
         volumes = ''
@@ -106,21 +108,24 @@ class ClouderImage(models.Model):
 
         return dockerfile
 
-    @api.one
+    @api.multi
     @api.constrains('name')
     def _check_name(self):
         """
         Check that the image name does not contain any forbidden
         characters.
         """
-        if not re.match("^[\w\d_]*$", self.name):
-            raise except_orm(_('Data error!'), _(
-                "Name can only contains letters, digits and underscore"))
+        if not re.match(r"^[\w\d_]*$", self.name):
+            self.raise_error(
+                "Name can only contains letters, digits and underscore",
+            )
 
     @api.multi
-    def build_image(self, model, server, runner=False, expose_ports=[], salt=True):
+    def build_image(
+            self, model, server, runner=False, expose_ports=None, salt=True):
         """
         """
+
         return
 
     @api.multi
@@ -130,10 +135,10 @@ class ClouderImage(models.Model):
         """
 
         if not self.registry_id:
-            raise except_orm(
-                _('Date error!'),
-                _("You need to specify the registry "
-                  "where the version must be stored."))
+            self.raise_error(
+                "You need to specify the registry "
+                "where the version must be stored.",
+            )
         now = datetime.now()
         version = self.current_version + '.' + now.strftime('%Y%m%d.%H%M%S')
         self.env['clouder.image.version'].create({
@@ -148,9 +153,11 @@ class ClouderImage(models.Model):
         res = super(ClouderImage, self).create(vals)
         if 'template_ids' in vals:
             for template in res.template_ids:
-                for volume in self.env['clouder.image.volume'].search([('template_id', '=', template.id)]):
+                for volume in self.env['clouder.image.volume'].search(
+                        [('template_id', '=', template.id)]):
                     volume.reset_template(records=[res])
-                for port in self.env['clouder.image.port'].search([('template_id', '=', template.id)]):
+                for port in self.env['clouder.image.port'].search(
+                        [('template_id', '=', template.id)]):
                     port.reset_template(records=[res])
         return res
 
@@ -162,9 +169,11 @@ class ClouderImage(models.Model):
         if 'template_ids' in vals:
             self = self.browse(self.id)
             for template in self.template_ids:
-                for volume in self.env['clouder.image.volume'].search([('template_id', '=', template.id)]):
+                for volume in self.env['clouder.image.volume'].search(
+                        [('template_id', '=', template.id)]):
                     volume.reset_template(records=[self])
-                for port in self.env['clouder.image.port'].search([('template_id', '=', template.id)]):
+                for port in self.env['clouder.image.port'].search(
+                        [('template_id', '=', template.id)]):
                     port.reset_template(records=[self])
         return res
 
@@ -184,9 +193,10 @@ class ClouderImageVolume(models.Model):
     _template_parent_many2one = 'image_id'
     _template_fields = ['hostpath', 'user', 'readonly', 'nosave']
 
-    image_id = fields.Many2one('clouder.image', 'Image', ondelete="cascade",
-                               required=False)
-    template_id = fields.Many2one('clouder.image.template', 'Template', ondelete="cascade")
+    image_id = fields.Many2one(
+        'clouder.image', 'Image', ondelete="cascade", required=False)
+    template_id = fields.Many2one(
+        'clouder.image.template', 'Template', ondelete="cascade")
     name = fields.Char('Path', required=True)
     hostpath = fields.Char('Host path')
     user = fields.Char('System User')
@@ -216,7 +226,8 @@ class ClouderImagePort(models.Model):
 
     image_id = fields.Many2one('clouder.image', 'Image', ondelete="cascade",
                                required=False)
-    template_id = fields.Many2one('clouder.image.template', 'Template', ondelete="cascade")
+    template_id = fields.Many2one(
+        'clouder.image.template', 'Template', ondelete="cascade")
     name = fields.Char('Name', required=True)
     localport = fields.Char('Local port', required=True)
     expose = fields.Selection(
@@ -264,8 +275,9 @@ class ClouderImageVersion(models.Model):
         Property returning the address of the registry where is hosted
         the image version.
         """
-        return self.registry_id and self.registry_id.base_ids[0].fulldomainserver_id.ip + ':' + \
-            self.registry_id.ports['http']['hostport']
+        return self.registry_id \
+            and self.registry_id.base_ids[0].fulldomainserver_id.ip + \
+            ':' + self.registry_id.ports['http']['hostport']
 
     @property
     def fullpath(self):
@@ -292,34 +304,34 @@ class ClouderImageVersion(models.Model):
          'Version name must be unique per image!')
     ]
 
-    @api.one
+    @api.multi
     @api.constrains('name')
     def _check_name(self):
         """
         Check that the image version name does not contain any forbidden
         characters.
         """
-        if not re.match("^[\w\d_.]*$", self.name):
-            raise except_orm(_('Data error!'), _(
+        if not re.match(r"^[\w\d_.]*$", self.name):
+            self.raise_error(
                 "Image version can only contains letters, "
-                "digits and underscore and dot"))
+                "digits and underscore and dot.",
+            )
 
-    @api.one
+    @api.multi
     def unlink(self):
         """
         Override unlink method to prevent image version unlink if
         some containers are linked to it.
         """
         if self.container_ids:
-            raise except_orm(
-                _('Inherit error!'),
+            self.raise_error(
                 _("A container is linked to this image version, "
                   "you can't delete it!"))
         if self.child_ids:
-            raise except_orm(
-                _('Inherit error!'),
-                _("A child is linked to this image version, "
-                  "you can't delete it!"))
+            self.raise_error(
+                "A child is linked to this image version, "
+                "you can't delete it!",
+            )
         return super(ClouderImageVersion, self).unlink()
 
     @api.multi

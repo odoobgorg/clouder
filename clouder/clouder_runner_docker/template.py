@@ -20,8 +20,7 @@
 #
 ##############################################################################
 
-from openerp import models, api, _
-from openerp.exceptions import except_orm
+from openerp import models, api
 import re
 
 
@@ -69,13 +68,13 @@ class ClouderContainer(models.Model):
                     if type_option.name == 'ports':
                         ports = option['value']
             if ports:
-                if not re.match("^[\d,-]*$", ports):
-                    raise except_orm(
-                        _('Data error!'),
-                        _("Ports can only contains digits, - and ,"))
+                if not re.match(r"^[\d,-]*$", ports):
+                    self.raise_error(
+                        "Ports can only contains digits, - and ,",
+                    )
 
                 for scope in ports.split(','):
-                    if re.match("^[\d]*$", scope):
+                    if re.match(r"^[\d]*$", scope):
                         start_port = scope
                         end_port = scope
                     else:
@@ -119,4 +118,3 @@ class ClouderContainer(models.Model):
                     'echo "' + self.options['public_key']['value'] +
                     '" > /root/.ssh/authorized_keys2'])
                 ssh.close()
-

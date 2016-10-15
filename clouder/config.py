@@ -20,8 +20,7 @@
 #
 ##############################################################################
 
-from openerp import models, fields, api, _
-from openerp.exceptions import except_orm
+from openerp import models, fields, api
 import re
 
 from datetime import datetime
@@ -51,7 +50,8 @@ class ClouderConfigSettings(models.Model):
 
     name = fields.Char('Name')
     email_sysadmin = fields.Char('Email SysAdmin')
-    salt_master_id = fields.Many2one('clouder.container', 'Salt Master', readonly=True)
+    salt_master_id = fields.Many2one(
+        'clouder.container', 'Salt Master', readonly=True)
     end_reset_keys = fields.Datetime('Last Reset Keys ended at')
     end_save_all = fields.Datetime('Last Save All ended at')
     end_update_containers = fields.Datetime('Last Update Containers ended at')
@@ -72,7 +72,7 @@ class ClouderConfigSettings(models.Model):
         """
         return self.env['clouder.model'].now_hour_regular
 
-    @api.one
+    @api.multi
     @api.constrains('email_sysadmin')
     def _check_email_sysadmin(self):
         """
@@ -80,10 +80,11 @@ class ClouderConfigSettings(models.Model):
         characters.
         """
         if self.email_sysadmin \
-                and not re.match("^[\w\d_.@-]*$", self.email_sysadmin):
-            raise except_orm(_('Data error!'), _(
+                and not re.match(r"^[\w\d_.@-]*$", self.email_sysadmin):
+            self.raise_error(
                 "Sysadmin email can only contains letters, "
-                "digits, underscore, - and @"))
+                "digits, underscore, - and @",
+            )
 
     @api.multi
     def save_all(self):
@@ -216,7 +217,8 @@ class ClouderConfigSettings(models.Model):
         Reset all bases marked for reset.
         """
         bases = self.env['clouder.base'].search(
-            [('cert_renewal_date', '!=', False),('cert_renewal_date', '<=', self.now_date)])
+            [('cert_renewal_date', '!=', False),
+             ('cert_renewal_date', '<=', self.now_date)])
         for base in bases:
             base.renew_cert()
 
@@ -244,8 +246,10 @@ class ClouderConfigSettings(models.Model):
     @api.multi
     def reset_all_jobs(self):
         job_obj = self.env['queue.job']
-        jobs = job_obj.search([('state','in',['pending','started','enqueued','failed'])])
+        jobs = job_obj.search([
+            ('state', 'in', ['pending', 'started', 'enqueued', 'failed'])])
         jobs.write({'state': 'done'})
         clouder_job_obj = self.env['clouder.job']
-        clouder_jobs = clouder_job_obj.search([('job_id','in',[j.id for j in jobs])])
+        clouder_jobs = clouder_job_obj.search([
+            ('job_id', 'in', [j.id for j in jobs])])
         clouder_jobs.write({'state': 'failed'})

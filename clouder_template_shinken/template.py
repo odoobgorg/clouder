@@ -99,7 +99,8 @@ class ClouderContainer(models.Model):
         Add the general configuration files.
         """
         super(ClouderContainer, self).deploy_post()
-        if self.application_id.type_id.name == 'shinken' and self.application_id.check_tags(['data']):
+        if self.application_id.type_id.name == 'shinken' \
+                and self.application_id.check_tags(['data']):
             self.send(
                 modules.get_module_path('clouder_template_shinken') +
                 '/res/general-shinken.config',
@@ -192,8 +193,8 @@ class ClouderContainerLink(models.Model):
                 self.target.execute([
                     'sed', '-i',
                     '"s/PORT/' +
-                    self.container_id.backup_ids[0].ports['nrpe']['hostport']
-                    + '/g"',
+                    self.container_id.backup_ids[0].ports['nrpe']['hostport'] +
+                    '/g"',
                     self.container_id.shinken_configfile], username='shinken')
                 self.target.execute([
                     'sed', '-i', '"s/METHOD/' +

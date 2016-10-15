@@ -20,10 +20,7 @@
 #
 ##############################################################################
 
-from openerp import models, fields, api, _
-from openerp.exceptions import except_orm
-from openerp import modules
-
+from openerp import models, fields, api
 
 import re
 
@@ -53,22 +50,24 @@ class ClouderEnvironment(models.Model):
          'Prefix must be unique!'),
     ]
 
-    @api.one
+    @api.multi
     @api.constrains('prefix')
     def _check_prefix(self):
         """
         Check that the prefix does not contain any forbidden
         characters.
-        Also checks that you cannot remove a prefix when containers are linked to the environment
+        Also checks that you cannot remove a prefix
+        when containers are linked to the environment
         """
-        if self.prefix and not re.match("^[\w]*$", self.prefix):
-            raise except_orm(
-                _('Data error!'),
-                _("Prefix can only contains letters"))
+        if self.prefix and not re.match(r"^[\w]*$", self.prefix):
+            self.raise_error(
+                "Prefix can only contains letters",
+            )
         if self.container_ids and not self.prefix:
-            raise except_orm(
-                _('Data error!'),
-                _("You cannot have an empty prefix when containers are linked"))
+            self.raise_error(
+                "You cannot have an empty prefix when "
+                "containers are linked",
+            )
 
     @api.multi
     def write(self, vals):
@@ -76,8 +75,9 @@ class ClouderEnvironment(models.Model):
         Removes the possibility to change the prefix if containers are linked
         """
         if 'prefix' in vals and self.container_ids:
-            raise except_orm(
-                _('Data error!'),
-                _("You cannot have an empty prefix when containers are linked"))
+            self.raise_error(
+                "You cannot have an empty prefix "
+                "when containers are linked",
+            )
 
         super(ClouderEnvironment, self).write(vals)

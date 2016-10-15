@@ -27,6 +27,7 @@ from datetime import datetime
 
 import socket
 
+
 class ClouderDomain(models.Model):
     """
     Add method to manage domain general configuration on the bind container.
@@ -49,7 +50,9 @@ class ClouderDomain(models.Model):
         """
         if self.dns_id and self.dns_id.application_id.type_id.name == 'bind':
             self.dns_id.execute([
-                'sed', '-i', '"s/[0-9]* ;serial/' + datetime.now().strftime('%m%d%H%M%S') + ' ;serial/g"',
+                'sed', '-i',
+                '"s/[0-9]* ;serial/' +
+                datetime.now().strftime('%m%d%H%M%S') + ' ;serial/g"',
                 self.configfile])
             self.dns_id.execute(['/etc/init.d/bind9 reload'])
 
@@ -59,7 +62,6 @@ class ClouderDomain(models.Model):
                 except:
                     self.dns_id.start()
                     pass
-
 
     @api.multi
     def deploy(self):
@@ -79,15 +81,16 @@ class ClouderDomain(models.Model):
                 self.configfile])
             self.dns_id.execute([
                 "echo 'zone \"" + self.name + "\" {' >> /etc/bind/named.conf"])
-            self.dns_id.execute(['echo "type master;" >> /etc/bind/named.conf'])
+            self.dns_id.execute([
+                'echo "type master;" >> /etc/bind/named.conf'])
 
             # Configure this only if the option is set
             if self.dns_id.options['slave_ip']['value']:
                 self.dns_id.execute([
-                    'echo "allow-transfer { '+
+                    'echo "allow-transfer { ' +
                     self.dns_id.options['slave_ip']['value'] + ';};" '
                     '>> /etc/bind/named.conf'])
-            
+
             self.dns_id.execute([
                 "echo 'file \"/etc/bind/db." +
                 self.name + "\";' >> /etc/bind/named.conf"])
@@ -105,7 +108,7 @@ class ClouderDomain(models.Model):
         if self.dns_id and self.dns_id.application_id.type_id.name == 'bind':
             self.dns_id.execute([
                 'sed', '-i',
-                "'/zone\s\"" + self.name + "\"/,/END\s" + self.name + "/d'",
+                r"'/zone\s\"" + self.name + r"\"/,/END\s" + self.name + "/d'",
                 '/etc/bind/named.conf'])
             self.dns_id.execute(['rm', self.configfile])
             self.dns_id.execute(['/etc/init.d/bind9 reload'])
@@ -124,8 +127,8 @@ class ClouderBaseLink(models.Model):
             'name.type_id.name', '=', 'proxy')])
         self.target.execute([
             'echo "' + name + ' IN A ' +
-            (proxy_link and proxy_link[0].target.server_id.ip
-             or self.base_id.container_id.server_id.ip) +
+            (proxy_link and proxy_link[0].target.server_id.ip or
+             self.base_id.container_id.server_id.ip) +
             '" >> ' + self.base_id.domain_id.configfile])
         self.base_id.domain_id.refresh_serial(self.base_id.fulldomain)
 
@@ -133,7 +136,7 @@ class ClouderBaseLink(models.Model):
     def purge_bind_config(self, name):
         self.target.execute([
             'sed', '-i',
-            '"/' + name + '\sIN\sA/d"',
+            '"/' + name + r'\sIN\sA/d"',
             self.base_id.domain_id.configfile])
         self.base_id.domain_id.refresh_serial()
 
@@ -152,7 +155,8 @@ class ClouderBaseLink(models.Model):
             proxy_link = self.search([
                 ('base_id', '=', self.base_id.id),
                 ('name.type_id.name', '=', 'proxy')])
-            if proxy_link and proxy_link.target and not self.base_id.cert_key and not self.base_id.cert_cert:
+            if proxy_link and proxy_link.target and not self.base_id.cert_key \
+                    and not self.base_id.cert_cert:
                 self.base_id.generate_cert_exec()
 
     @api.multi

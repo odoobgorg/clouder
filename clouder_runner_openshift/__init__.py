@@ -20,5 +20,5 @@
 #
 ##############################################################################
 
-import runner
-import template
+# import runner
+from . import template
